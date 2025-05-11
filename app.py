@@ -3,25 +3,16 @@ import pandas as pd
 import matplotlib.pyplot as plt
 import streamlit as st
 
-# Load data files (update paths as needed)
-weekly_key_path = "tests_par_semaine_antibiotiques_2024.xlsx"
+# Load data file (update path as needed)
 weekly_other_path = "other Antibiotiques staph aureus.xlsx"
 
 # Load data
-df_key = pd.read_excel(weekly_key_path)
 df_other = pd.read_excel(weekly_other_path)
 
 # Clean column names
-df_key.columns = df_key.columns.str.strip()
 df_other.columns = df_other.columns.str.strip()
 
 # Antibiotic mappings for column names and display
-targets_key = {
-    'VA': ('VA', 'R VA'),
-    'TPN': ('TPN', 'R TPN'),
-    'GM': ('GM', 'R GM'),
-    'OX': ('ox', 'R OX')
-}
 targets_other = {
     'DAP': ('DAP', 'R DAP'),
     'CLIN': ('CLIN', 'R CLIN'),
@@ -46,13 +37,11 @@ def compute_tukey_thresholds(df_percent):
     return thresholds
 
 # Prepare data
-df_key_percent = compute_weekly_percent(df_key, targets_key)
 df_other_percent = compute_weekly_percent(df_other, targets_other)
-thresholds_key = compute_tukey_thresholds(df_key_percent)
 thresholds_other = compute_tukey_thresholds(df_other_percent)
 
 # Streamlit dashboard
-st.title("Staphylococcus aureus - Antibiotic Resistance Dashboard (Weekly, 2024)")
+st.title("Staphylococcus aureus - Resistance to Other Antibiotics (Weekly, 2024)")
 
 # Function to plot antibiotic resistance evolution
 def plot_antibiotic(df, ab, threshold):
@@ -71,10 +60,6 @@ def plot_antibiotic(df, ab, threshold):
     ax.legend()
     st.pyplot(fig)
 
-st.subheader("Key Antibiotics")
-for ab in targets_key:
-    plot_antibiotic(df_key_percent, ab, thresholds_key[ab])
-
-st.subheader("Other Antibiotics")
+# Plot each antibiotic
 for ab in targets_other:
     plot_antibiotic(df_other_percent, ab, thresholds_other[ab])
