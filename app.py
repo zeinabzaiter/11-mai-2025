@@ -25,9 +25,9 @@ def compute_weekly_percent(df, ab_map):
     percent_df = pd.DataFrame()
     percent_df['Week'] = df['Week'] if 'Week' in df.columns else df['Semaine']
     for ab, (tested, resistant) in ab_map.items():
-        with pd.option_context('mode.use_inf_as_na', True):
-            percent_series = (df[resistant] / df[tested] * 100).replace([np.inf, -np.inf], np.nan).round(2)
-            percent_df[ab] = percent_series
+        percent_series = pd.to_numeric(df[resistant], errors='coerce') / pd.to_numeric(df[tested], errors='coerce') * 100
+        percent_series = percent_series.replace([np.inf, -np.inf], np.nan).round(2)
+        percent_df[ab] = percent_series
     return percent_df
 
 def compute_tukey_thresholds(df_percent):
@@ -49,8 +49,10 @@ st.title("Staphylococcus aureus - Resistance to Other Antibiotics (Weekly, 2024)
 # Function to plot antibiotic resistance evolution
 def plot_antibiotic(df, ab, threshold):
     fig, ax = plt.subplots()
-    valid = df[['Week', ab]].dropna()
-    valid = valid[np.isfinite(valid[ab])]
+    valid = df[['Week', ab]].copy()
+    valid = valid[pd.to_numeric(valid['Week'], errors='coerce').notna() & pd.to_numeric(valid[ab], errors='coerce').notna()]
+    valid['Week'] = pd.to_numeric(valid['Week'])
+    valid[ab] = pd.to_numeric(valid[ab])
 
     ax.plot(valid['Week'], valid[ab], marker='o', label=f"% Resistance - {ab}")
     ax.axhline(y=threshold, color='r', linestyle='--', label=f"Tukey Alert ({threshold}%)")
