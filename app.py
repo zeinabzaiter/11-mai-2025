@@ -46,12 +46,16 @@ st.title("Staphylococcus aureus - Resistance to Other Antibiotics (Weekly, 2024)
 # Function to plot antibiotic resistance evolution
 def plot_antibiotic(df, ab, threshold):
     fig, ax = plt.subplots()
-    ax.plot(df['Week'], df[ab], marker='o', label=f"% Resistance - {ab}")
+    valid = df[['Week', ab]].dropna()
+    valid = valid[valid[ab].apply(lambda x: isinstance(x, (int, float)))]
+
+    ax.plot(valid['Week'], valid[ab], marker='o', label=f"% Resistance - {ab}")
     ax.axhline(y=threshold, color='r', linestyle='--', label=f"Tukey Alert ({threshold}%)")
-    # Mark alerts
-    for i, val in enumerate(df[ab]):
-        if val > threshold:
-            ax.plot(df['Week'][i], val, 'ro', markersize=8)
+
+    for i, row in valid.iterrows():
+        if row[ab] > threshold:
+            ax.plot(row['Week'], row[ab], 'ro', markersize=8)
+
     ax.set_title(f"Weekly Resistance for {ab}")
     ax.set_xlabel("Week")
     ax.set_ylabel("% Resistance")
