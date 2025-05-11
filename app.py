@@ -2,6 +2,7 @@
 import pandas as pd
 import matplotlib.pyplot as plt
 import streamlit as st
+import numpy as np
 
 # Load data file (update path as needed)
 weekly_other_path = "other Antibiotiques staph aureus.xlsx"
@@ -24,7 +25,9 @@ def compute_weekly_percent(df, ab_map):
     percent_df = pd.DataFrame()
     percent_df['Week'] = df['Week'] if 'Week' in df.columns else df['Semaine']
     for ab, (tested, resistant) in ab_map.items():
-        percent_df[ab] = (df[resistant] / df[tested] * 100).round(2)
+        with pd.option_context('mode.use_inf_as_na', True):
+            percent_series = (df[resistant] / df[tested] * 100).replace([np.inf, -np.inf], np.nan).round(2)
+            percent_df[ab] = percent_series
     return percent_df
 
 def compute_tukey_thresholds(df_percent):
@@ -47,7 +50,7 @@ st.title("Staphylococcus aureus - Resistance to Other Antibiotics (Weekly, 2024)
 def plot_antibiotic(df, ab, threshold):
     fig, ax = plt.subplots()
     valid = df[['Week', ab]].dropna()
-    valid = valid[valid[ab].apply(lambda x: isinstance(x, (int, float)))]
+    valid = valid[np.isfinite(valid[ab])]
 
     ax.plot(valid['Week'], valid[ab], marker='o', label=f"% Resistance - {ab}")
     ax.axhline(y=threshold, color='r', linestyle='--', label=f"Tukey Alert ({threshold}%)")
