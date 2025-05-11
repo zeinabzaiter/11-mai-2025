@@ -1,8 +1,9 @@
 # dashboard_app.py
 import pandas as pd
-import matplotlib.pyplot as plt
-import streamlit as st
 import numpy as np
+import streamlit as st
+import plotly.express as px
+import plotly.graph_objects as go
 
 # Load data file (update path as needed)
 weekly_other_path = "other Antibiotiques staph aureus.xlsx"
@@ -41,34 +42,47 @@ def compute_tukey_thresholds(df_percent):
 
 # Prepare data
 df_other_percent = compute_weekly_percent(df_other, targets_other)
-thresholds_other = compute_tukey_thresholds(df_other_percent)
+thresh = compute_tukey_thresholds(df_other_percent)
+df_long = df_other_percent.melt(id_vars='Week', var_name='Antibiotic', value_name='% Resistance')
+df_long.dropna(inplace=True)
 
 # Streamlit dashboard
 st.title("Staphylococcus aureus - Resistance to Other Antibiotics (Weekly, 2024)")
 
-# Function to plot antibiotic resistance evolution
-def plot_antibiotic(df, ab, threshold):
-    fig, ax = plt.subplots()
-    valid = df[['Week', ab]].copy()
-    valid = valid[pd.to_numeric(valid['Week'], errors='coerce').notna() & pd.to_numeric(valid[ab], errors='coerce').notna()]
-    valid['Week'] = pd.to_numeric(valid['Week'])
-    valid[ab] = pd.to_numeric(valid[ab])
+# Antibiotic selection filter
+available_antibiotics = df_long['Antibiotic'].unique().tolist()
+selected_antibiotics = st.multiselect(
+    "Select antibiotics to display:",
+    options=available_antibiotics,
+    default=available_antibiotics
+)
 
-    ax.plot(valid['Week'], valid[ab], marker='o', label=f"% Resistance - {ab}")
-    ax.axhline(y=threshold, color='r', linestyle='--', label=f"Tukey Alert ({threshold}%)")
+# Interactive line chart with thresholds
+fig = go.Figure()
 
-    for i, row in valid.iterrows():
-        if row[ab] > threshold:
-            ax.plot(row['Week'], row[ab], 'ro', markersize=8)
+for ab in selected_antibiotics:
+    ab_data = df_long[df_long['Antibiotic'] == ab]
+    fig.add_trace(go.Scatter(
+        x=ab_data['Week'],
+        y=ab_data['% Resistance'],
+        mode='lines+markers',
+        name=ab
+    ))
+    fig.add_trace(go.Scatter(
+        x=ab_data['Week'],
+        y=[thresh[ab]] * len(ab_data),
+        mode='lines',
+        name=f"Alert {ab} ({thresh[ab]}%)",
+        line=dict(dash='dash', color='red'),
+        showlegend=True
+    ))
 
-    ax.set_title(f"Weekly Resistance for {ab}")
-    ax.set_xlabel("Week")
-    ax.set_ylabel("% Resistance")
-    ax.set_ylim(0, 100)
-    ax.grid(True)
-    ax.legend()
-    st.pyplot(fig)
+fig.update_layout(
+    title="Weekly Resistance % by Antibiotic with Alert Thresholds",
+    xaxis_title="Week",
+    yaxis_title="% Resistance",
+    yaxis_range=[0, 100],
+    hovermode="x unified"
+)
 
-# Plot each antibiotic
-for ab in targets_other:
-    plot_antibiotic(df_other_percent, ab, thresholds_other[ab])
+st.plotly_chart(fig, use_container_width=True)
