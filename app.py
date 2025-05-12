@@ -78,7 +78,7 @@ for ab in selected_antibiotics:
         line=dict(width=3)
     ))
     
-    # Highlight points above upper threshold in red
+    # Highlight values above upper threshold
     fig.add_trace(go.Scatter(
         x=weeks[values > thresh[ab]['upper']],
         y=values[values > thresh[ab]['upper']],
@@ -88,7 +88,7 @@ for ab in selected_antibiotics:
         showlegend=False
     ))
 
-    # Upper threshold line
+    # Upper and lower threshold lines
     fig.add_trace(go.Scatter(
         x=weeks,
         y=[thresh[ab]['upper']] * len(weeks),
@@ -98,7 +98,6 @@ for ab in selected_antibiotics:
         showlegend=True
     ))
 
-    # Lower threshold line
     fig.add_trace(go.Scatter(
         x=weeks,
         y=[thresh[ab]['lower']] * len(weeks),
@@ -108,12 +107,12 @@ for ab in selected_antibiotics:
         showlegend=True
     ))
 
-# Layout
+# Force Y-axis range
 fig.update_layout(
     title="📈 Weekly % Resistance with Alert Thresholds",
     xaxis_title="Week",
     yaxis_title="% Resistance",
-    yaxis=dict(range=[0, 40]),  # ← Cette ligne contrôle l’échelle Y
+    yaxis=dict(range=[0, 40]),  # <- Échelle forcée ici
     template="plotly_white",
     hovermode="x unified",
     legend=dict(
@@ -124,6 +123,5 @@ fig.update_layout(
         x=1
     )
 )
-
 
 st.plotly_chart(fig, use_container_width=True)
