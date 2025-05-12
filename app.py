@@ -113,10 +113,11 @@ fig.update_layout(
     title="📈 Weekly % Resistance with Alert Thresholds",
     xaxis_title="Week",
     yaxis_title="% Resistance",
-     yaxis=dict(range=[0, 40]),
+    yaxis=dict(range=[0, 40]),  # ← C'est ici que l'échelle est fixée
     template="plotly_white",
     hovermode="x unified",
     legend=dict(orientation="h", yanchor="bottom", y=1.02, xanchor="right", x=1)
 )
+
 
 st.plotly_chart(fig, use_container_width=True)
