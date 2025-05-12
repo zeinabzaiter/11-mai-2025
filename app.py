@@ -81,7 +81,7 @@ fig.update_layout(
     title="Weekly Resistance % by Antibiotic with Alert Thresholds",
     xaxis_title="Week",
     yaxis_title="% Resistance",
-    yaxis_range=[0, 100],
+    yaxis_range=[0, 40],
     hovermode="x unified"
 )
 
