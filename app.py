@@ -24,8 +24,11 @@ def compute_weekly_percent(df, ab_map):
     percent_df = pd.DataFrame()
     percent_df['Week'] = df['Week'] if 'Week' in df.columns else df['Semaine']
     for ab, (tested, resistant) in ab_map.items():
-        percent_series = pd.to_numeric(df[resistant], errors='coerce') / pd.to_numeric(df[tested], errors='coerce') * 100
-        percent_series = percent_series.replace([np.inf, -np.inf], np.nan).round(2)
+        tested_values = pd.to_numeric(df[tested], errors='coerce')
+        resistant_values = pd.to_numeric(df[resistant], errors='coerce')
+        percent_series = (resistant_values / tested_values) * 100
+        percent_series = percent_series.replace([np.inf, -np.inf], np.nan)
+        percent_series = percent_series.clip(upper=100).round(2)  # Cap at 100%
         percent_df[ab] = percent_series
     return percent_df
 
@@ -68,7 +71,7 @@ for ab in selected_antibiotics:
     weeks = ab_data['Week']
     values = ab_data['% Resistance']
     
-    # Trace resistance line
+    # Line trace
     fig.add_trace(go.Scatter(
         x=weeks,
         y=values,
@@ -77,8 +80,8 @@ for ab in selected_antibiotics:
         marker=dict(size=8),
         line=dict(width=3)
     ))
-    
-    # Highlight values above upper threshold
+
+    # Red alert points
     fig.add_trace(go.Scatter(
         x=weeks[values > thresh[ab]['upper']],
         y=values[values > thresh[ab]['upper']],
@@ -88,7 +91,7 @@ for ab in selected_antibiotics:
         showlegend=False
     ))
 
-    # Upper and lower threshold lines
+    # Threshold lines
     fig.add_trace(go.Scatter(
         x=weeks,
         y=[thresh[ab]['upper']] * len(weeks),
@@ -107,12 +110,15 @@ for ab in selected_antibiotics:
         showlegend=True
     ))
 
-# Force Y-axis range
+# Fix Y-axis range
 fig.update_layout(
     title="📈 Weekly % Resistance with Alert Thresholds",
     xaxis_title="Week",
     yaxis_title="% Resistance",
-    yaxis=dict(range=[0, 40]),  # <- Échelle forcée ici
+    yaxis=dict(
+        range=[0, 40],
+        fixedrange=True  # Force y-axis limit
+    ),
     template="plotly_white",
     hovermode="x unified",
     legend=dict(
