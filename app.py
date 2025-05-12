@@ -2,19 +2,16 @@
 import pandas as pd
 import numpy as np
 import streamlit as st
-import plotly.express as px
 import plotly.graph_objects as go
 
-# Load data file (update path as needed)
-weekly_other_path = "other Antibiotiques staph aureus.xlsx"
-
 # Load data
+weekly_other_path = "other Antibiotiques staph aureus.xlsx"
 df_other = pd.read_excel(weekly_other_path)
 
 # Clean column names
 df_other.columns = df_other.columns.str.strip()
 
-# Antibiotic mappings for column names and display
+# Antibiotic mappings
 targets_other = {
     'DAP': ('DAP', 'R DAP'),
     'CLIN': ('CLIN', 'R CLIN'),
@@ -22,6 +19,7 @@ targets_other = {
     'LZ': ('LZ', 'R LZ')
 }
 
+# Compute weekly % resistance
 def compute_weekly_percent(df, ab_map):
     percent_df = pd.DataFrame()
     percent_df['Week'] = df['Week'] if 'Week' in df.columns else df['Semaine']
@@ -31,13 +29,17 @@ def compute_weekly_percent(df, ab_map):
         percent_df[ab] = percent_series
     return percent_df
 
+# Compute Tukey thresholds (upper & lower)
 def compute_tukey_thresholds(df_percent):
     thresholds = {}
     for ab in df_percent.columns[1:]:
         q1 = df_percent[ab].quantile(0.25)
         q3 = df_percent[ab].quantile(0.75)
         iqr = q3 - q1
-        thresholds[ab] = round(q3 + 1.5 * iqr, 2)
+        thresholds[ab] = {
+            'upper': round(q3 + 1.5 * iqr, 2),
+            'lower': round(max(q1 - 1.5 * iqr, 0), 2)
+        }
     return thresholds
 
 # Prepare data
@@ -46,10 +48,11 @@ thresh = compute_tukey_thresholds(df_other_percent)
 df_long = df_other_percent.melt(id_vars='Week', var_name='Antibiotic', value_name='% Resistance')
 df_long.dropna(inplace=True)
 
-# Streamlit dashboard
-st.title("Staphylococcus aureus - Resistance to Other Antibiotics (Weekly, 2024)")
+# Streamlit app
+st.set_page_config(layout="wide")
+st.title("🦠 Staphylococcus aureus - Resistance to Other Antibiotics (Weekly, 2024)")
 
-# Antibiotic selection filter
+# Antibiotic selection
 available_antibiotics = df_long['Antibiotic'].unique().tolist()
 selected_antibiotics = st.multiselect(
     "Select antibiotics to display:",
@@ -57,32 +60,63 @@ selected_antibiotics = st.multiselect(
     default=available_antibiotics
 )
 
-# Interactive line chart with thresholds
+# Plot
 fig = go.Figure()
 
 for ab in selected_antibiotics:
     ab_data = df_long[df_long['Antibiotic'] == ab]
+    weeks = ab_data['Week']
+    values = ab_data['% Resistance']
+    
+    # Trace resistance line
     fig.add_trace(go.Scatter(
-        x=ab_data['Week'],
-        y=ab_data['% Resistance'],
+        x=weeks,
+        y=values,
         mode='lines+markers',
-        name=ab
+        name=ab,
+        marker=dict(size=8),
+        line=dict(width=3)
     ))
+    
+    # Highlight points above upper threshold in red
     fig.add_trace(go.Scatter(
-        x=ab_data['Week'],
-        y=[thresh[ab]] * len(ab_data),
+        x=weeks[values > thresh[ab]['upper']],
+        y=values[values > thresh[ab]['upper']],
+        mode='markers',
+        name=f"{ab} Alert",
+        marker=dict(size=10, color='red', symbol='circle-open'),
+        showlegend=False
+    ))
+
+    # Upper threshold line
+    fig.add_trace(go.Scatter(
+        x=weeks,
+        y=[thresh[ab]['upper']] * len(weeks),
         mode='lines',
-        name=f"Alert {ab} ({thresh[ab]}%)",
-        line=dict(dash='dash', color='red'),
+        name=f"{ab} Upper Alert ({thresh[ab]['upper']}%)",
+        line=dict(dash='dash', color='red', width=2),
         showlegend=True
     ))
 
+    # Lower threshold line
+    fig.add_trace(go.Scatter(
+        x=weeks,
+        y=[thresh[ab]['lower']] * len(weeks),
+        mode='lines',
+        name=f"{ab} Lower Alert ({thresh[ab]['lower']}%)",
+        line=dict(dash='dot', color='orange', width=2),
+        showlegend=True
+    ))
+
+# Layout
 fig.update_layout(
-    title="Weekly Resistance % by Antibiotic with Alert Thresholds",
+    title="📈 Weekly % Resistance with Alert Thresholds",
     xaxis_title="Week",
     yaxis_title="% Resistance",
     yaxis_range=[0, 40],
-    hovermode="x unified"
+    template="plotly_white",
+    hovermode="x unified",
+    legend=dict(orientation="h", yanchor="bottom", y=1.02, xanchor="right", x=1)
 )
 
 st.plotly_chart(fig, use_container_width=True)
